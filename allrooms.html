@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Rooms</title>
+    <link rel="icon" type="image/png" href="https://i.imgur.com/oiQK0U1.png">	
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html {
+            overflow-y: scroll;
+        }
+        .pattern-container {
+            position: relative;
+        }
+        .pattern-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50px;
+            height: 100%;
+            background-image: url('https://www.transparenttextures.com/patterns/diagonal-striped-brick.png');
+            background-repeat: repeat-y;
+            opacity: 0.3;
+            z-index: 0;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+        .tab-active {
+            background-color: #2563eb;
+            color: white;
+        }
+        .header-container {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background-color: #2563eb;
+            width: 100%;
+        }
+        .nav-container {
+            position: sticky;
+            top: 64px;
+            z-index: 10;
+            background-color: white;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        body {
+            padding-right: var(--scrollbar-width, 0px);
+            box-sizing: border-box;
+        }
+        main {
+            padding-top: calc(64px + 56px + 24px);
+            padding-left: 1.5rem;
+            padding-right: 1.5rem;
+            padding-bottom: 1.5rem;
+        }
+        #overview-section {
+            margin-top: 1.5rem;
+        }
+        .flashcard {
+            perspective: 1000px;
+            width: 300px;
+            height: 400px;
+        }
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        .flashcard-front, .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .flashcard-back {
+            transform: rotateY(180deg);
+        }
+        .settings-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 100;
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .settings-panel.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .settings-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 99;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        .settings-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .close-settings {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 1.5rem;
+            color: #666;
+        }
+        .settings-icon {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            cursor: pointer;
+            color: white;
+            font-size: 1.5rem;
+            z-index: 21;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        .settings-icon:hover {
+            background-color: rgba(0,0,0,0.3);
+            transform: scale(1.1);
+        }
+        #test-word {
+            min-height: 3rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="min-h-screen bg-gradient-to-b from-blue-50 to-gray-100 flex flex-col pattern-container">
+        <div class="settings-icon" id="settings-icon">⚙️</div>
+        <header class="header-container bg-blue-600 text-white p-4 shadow-lg">
+            <div class="max-w-md mx-auto">
+                <h1 class="text-3xl font-bold text-center">All Rooms - Aral Zefes</h1>
+            </div>
+        </header>
+        <nav class="nav-container shadow-md p-2">
+            <div class="flex justify-between max-w-md mx-auto">
+                <button id="overview-tab" class="tab-active px-4 py-2 text-sm font-semibold rounded hover:bg-blue-500 hover:text-white transition flex-1 text-center">Overview</button>
+                <button id="flashcards-tab" class="px-4 py-2 text-sm font-semibold rounded hover:bg-blue-500 hover:text-white transition flex-1 text-center">Flash Cards</button>
+                <button id="test-tab" class="px-4 py-2 text-sm font-semibold rounded hover:bg-blue-500 hover:text-white transition flex-1 text-center">Test Yourself</button>
+            </div>
+        </nav>
+        <main class="container mx-auto p-6 content flex-1">
+            <section id="overview-section" class="grid grid-cols-1 gap-12 max-w-md mx-auto">
+                <div class="mb-4">
+                    <label class="inline-flex items-center mr-4">
+                        <input type="radio" name="overview-sort" value="english" checked class="mr-2">
+                        <span>Sort by English</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="overview-sort" value="ulgarienef" class="mr-2">
+                        <span>Sort by Ulgarienef</span>
+                    </label>
+                </div>
+            </section>
+            <section id="flashcards-section" class="hidden flex flex-col items-center max-w-md mx-auto">
+                <div class="mb-4">
+                    <label class="inline-flex items-center mr-4">
+                        <input type="radio" name="flashcard-mode" value="random" checked class="mr-2">
+                        <span>Random</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="flashcard-mode" value="alphabetical" class="mr-2">
+                        <span>Alphabetical</span>
+                    </label>
+                </div>
+                <div class="flashcard" id="flashcard-container">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <img id="flashcard-image" src="" alt="Vocabulary" class="w-48 h-48 object-cover rounded mb-4">
+                            <h2 class="text-xl font-semibold text-gray-800" id="flashcard-word"></h2>
+                        </div>
+                        <div class="flashcard-back">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-4" id="flashcard-translation"></h2>
+                            <button class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition" id="next-flashcard">Next Card</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <section id="test-section" class="hidden flex flex-col items-center max-w-md mx-auto">
+                <div class="bg-white rounded-lg shadow-md p-6 w-full">
+                    <img id="test-image" src="" alt="Vocabulary" class="w-48 h-48 object-cover rounded mb-4 mx-auto">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4 text-center" id="test-word"></h2>
+                    <input id="test-input" type="text" placeholder="Enter Ulgarienef translation" class="border border-gray-300 rounded p-2 mb-4 w-full">
+                    <div class="flex justify-between">
+                        <button id="test-submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">Submit</button>
+                        <button id="skip-test" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">Skip</button>
+                    </div>
+                    <p id="test-feedback" class="text-lg mt-4 text-center"></p>
+                </div>
+                <div class="mt-4 text-center">
+                    <p id="test-progress" class="text-gray-600"></p>
+                </div>
+            </section>
+        </main>
+    </div>
+    
+    <!-- Settings Panel -->
+    <div class="settings-overlay" id="settings-overlay"></div>
+    <div class="settings-panel" id="settings-panel">
+        <span class="close-settings" id="close-settings">×</span>
+        <h2 class="text-xl font-bold mb-4">Select Topics</h2>
+        <div id="topics-list" class="grid grid-cols-1 gap-2">
+            <!-- Topics will be added here dynamically -->
+        </div>
+    </div>
+
+    <script>
+        // Vocabulary data organized by topics
+        const vocabularyData = {
+            "Kitchen": [
+			{ word: "Pot", translation: "Öf", testTranslations: ["Öf"], image: "https://i.imgur.com/UWLoLHx.png", link: "https://example.com/monkey" },
+			{ word: "Pan", translation: "Panna", testTranslations: ["Panna"], image: "https://i.imgur.com/FXVQZIT.png", link: "https://example.com/dog" },
+			{ word: "Knife", translation: "Biib", testTranslations: ["Biib"], image: "https://i.imgur.com/BxRU3Jy.png", link: "https://example.com/elephant" },
+			{ word: "Plate", translation: "Jolk", testTranslations: ["Jolk"], image: "https://i.imgur.com/WFuuyFO.png", link: "https://example.com/lion" },
+			{ word: "Glass", translation: "Pfandus", testTranslations: ["Pfandus"], image: "https://i.imgur.com/GpK4Hl4.png", link: "https://example.com/lion" },
+			{ word: "Dishwasher", translation: "Aplof", testTranslations: ["Aplof"], image: "https://i.imgur.com/Ac7kSgY.png", link: "https://example.com/lion" },
+			{ word: "Microwave", translation: "Joto Baraka", testTranslations: ["Joto Baraka"], image: "https://i.imgur.com/AsqFe2u.png", link: "https://example.com/monkey" },
+			{ word: "Sieve", translation: "Ralio", testTranslations: ["Ralio"], image: "https://i.imgur.com/3Qm64YL.png", link: "https://example.com/dog" },
+			{ word: "Fork", translation: "Kamt", testTranslations: ["Kamt"], image: "https://i.imgur.com/igHdHcc.png", link: "https://example.com/elephant" },
+			{ word: "Spoon", translation: "Sudu", testTranslations: ["Sudu"], image: "https://i.imgur.com/9l5qnId.png", link: "https://example.com/lion" },
+			{ word: "Coffee Machine", translation: "Kurde", testTranslations: ["Kurde"], image: "https://i.imgur.com/ckJvmQw.png", link: "https://example.com/lion" },
+			{ word: "Mug", translation: "Icolm", testTranslations: ["Icolm"], image: "https://i.imgur.com/086xf1i.png", link: "https://example.com/lion" },
+			{ word: "Cutting Board", translation: "Grising", testTranslations: ["Grising"], image: "https://i.imgur.com/6tWOiX2.png", link: "https://example.com/lion" },
+			{ word: "Blender", translation: "Fakki", testTranslations: ["Fakki"], image: "https://i.imgur.com/H3hqLOC.png", link: "https://example.com/lion" },
+			{ word: "Fridge", translation: "Kiste", testTranslations: ["Kiste"], image: "https://i.imgur.com/eFA1M7s.png", link: "https://example.com/monkey" },
+			{ word: "Oven", translation: "Eem", testTranslations: ["Eem"], image: "https://i.imgur.com/Pl7gJnf.png", link: "https://example.com/dog" },
+			{ word: "Stove", translation: "Vigor", testTranslations: ["Vigor"], image: "https://i.imgur.com/OUEHm1k.png", link: "https://example.com/elephant" },
+			{ word: "Jug", translation: "Sasteng", testTranslations: ["Sasteng"], image: "https://i.imgur.com/gxSnVyz.png", link: "https://example.com/elephant" },	
+            { word: "Funnel", translation: "Kru", testTranslations: ["Kru"], image: "https://i.imgur.com/8BVpaH2.png", link: "https://example.com/lion" },					
+			{ word: "Bowl", translation: "Pinz", testTranslations: ["Pinz"], image: "https://i.imgur.com/W2vVSf8.png", link: "https://example.com/dog" }
+			],
+				
+			"Bathroom": [
+            { word: "Shower", translation: "Ukana", testTranslations: ["Ukana"], image: "https://i.imgur.com/0nKZbv4.png", link: "https://example.com/monkey" },
+            { word: "Toilet", translation: "Gomio", testTranslations: ["Gomio"], image: "https://i.imgur.com/WvJM3F4.png", link: "https://example.com/dog" },
+            { word: "Bathtub", translation: "Banjo", testTranslations: ["Banjo"], image: "https://i.imgur.com/U5idrXu.png", link: "https://example.com/elephant" },
+            { word: "Tampon", translation: "Da Duro", testTranslations: ["Da Duro"], image: "https://i.imgur.com/NkhpT50.png", link: "https://example.com/lion" },
+            { word: "Pad", translation: "Da Della", testTranslations: ["Da Della"], image: "https://i.imgur.com/WKbGPso.png", link: "https://example.com/lion" },
+            { word: "Toothbrush", translation: "Rommus", testTranslations: ["Rommus"], image: "https://i.imgur.com/dkRsxSu.png", link: "https://example.com/lion" },
+            { word: "Toothpaste", translation: "Ölus Offe Tahn", testTranslations: ["Ölus Offe Tahn"], image: "https://i.imgur.com/3rgMndF.png", link: "https://example.com/monkey" },
+            { word: "Mouthwash", translation: "Oinero", testTranslations: ["Oinero"], image: "https://i.imgur.com/PCvJJWu.png", link: "https://example.com/dog" },
+            { word: "Toilet Paper", translation: "Gredona", testTranslations: ["Gredona"], image: "https://i.imgur.com/OxQxpz6.png", link: "https://example.com/elephant" },
+            { word: "Bucket", translation: "Hakka", testTranslations: ["Hakka"], image: "https://i.imgur.com/aFzJT3i.png", link: "https://example.com/lion" },
+            { word: "Deodorant", translation: "Pex", testTranslations: ["Pex"], image: "https://i.imgur.com/nzZ3UhT.png", link: "https://example.com/lion" },
+            { word: "Razor", translation: "Pitwa", testTranslations: ["Pitwa"], image: "https://i.imgur.com/JHInGwV.png", link: "https://example.com/lion" },
+            { word: "Soap", translation: "Bin", testTranslations: ["Bin"], image: "https://i.imgur.com/IsifoKf.png", link: "https://example.com/lion" },
+            { word: "Towel", translation: "Monk", testTranslations: ["Monk"], image: "https://i.imgur.com/w3i5dat.png", link: "https://example.com/lion" },
+            { word: "Washing Machine", translation: "Vortex", testTranslations: ["Vortex"], image: "https://i.imgur.com/Wge8sTT.png", link: "https://example.com/monkey" },
+            { word: "Shampoo", translation: "Allud", testTranslations: ["Allud"], image: "https://i.imgur.com/mnyD6hu.png", link: "https://example.com/dog" },
+            { word: "Hair Spray", translation: "Kowel", testTranslations: ["Kowel"], image: "https://i.imgur.com/JYZ0SyC.png", link: "https://example.com/elephant" },
+            { word: "Comb", translation: "Misim", testTranslations: ["Misim"], image: "https://i.imgur.com/2eMDpql.png", link: "https://example.com/monkey" },	
+            { word: "Tissue", translation: "Schnitti", testTranslations: ["Schnitti"], image: "https://i.imgur.com/W6keiG3.png", link: "https://example.com/elephant" },			
+            { word: "Tweezers", translation: "Rege", testTranslations: ["Rege"], image: "https://i.imgur.com/VsdIajh.png", link: "https://example.com/dog" }
+			],
+				
+			"Workshop & Garden": [				
+            { word: "Shovel", translation: "Krabbuchi", testTranslations: ["Krabbuchi"], image: "https://i.imgur.com/slLehjB.png", link: "https://example.com/monkey" },
+            { word: "Broom", translation: "Meitade", testTranslations: ["Meitade"], image: "https://i.imgur.com/FMC0PiK.png", link: "https://example.com/dog" },
+            { word: "Hammer", translation: "Erei", testTranslations: ["Erei"], image: "https://i.imgur.com/0FgPkV3.png", link: "https://example.com/elephant" },
+            { word: "Saw", translation: "Dora", testTranslations: ["Dora"], image: "https://i.imgur.com/2rpMqUb.png", link: "https://example.com/lion" },
+            { word: "Chainsaw", translation: "Nia Dora", testTranslations: ["Nia Dora"], image: "https://i.imgur.com/LCFK57v.png", link: "https://example.com/lion" },
+            { word: "Axe", translation: "Loy", testTranslations: ["Loy"], image: "https://i.imgur.com/6lUn4PL.png", link: "https://example.com/lion" },
+            { word: "Nail", translation: "Kicho", testTranslations: ["Kicho"], image: "https://i.imgur.com/wr49LGb.png", link: "https://example.com/monkey" },
+            { word: "Drill", translation: "Judokast", testTranslations: ["Judokast"], image: "https://i.imgur.com/dTD1CF5.png", link: "https://example.com/dog" },
+            { word: "Srewdriver", translation: "Hanting", testTranslations: ["Hanting"], image: "https://i.imgur.com/O7WVAAb.png", link: "https://example.com/elephant" },
+            { word: "Srew", translation: "Hant", testTranslations: ["Hant"], image: "https://i.imgur.com/njSUKEF.png", link: "https://example.com/lion" },
+            { word: "Anvil", translation: "Akaat", testTranslations: ["Akaat"], image: "https://i.imgur.com/jj7b8Oz.png", link: "https://example.com/lion" },
+            { word: "Duct Tape", translation: "Boof", testTranslations: ["Boof"], image: "https://i.imgur.com/ZMCF8CV.png", link: "https://example.com/lion" },
+            { word: "Tape Measure", translation: "Babus", testTranslations: ["Babus"], image: "https://i.imgur.com/kU4rinJ.png", link: "https://example.com/lion" },
+            { word: "Pliers", translation: "Ruglet", testTranslations: ["Ruglet"], image: "https://i.imgur.com/mhyIbFM.png", link: "https://example.com/lion" },
+            { word: "Hose", translation: "Bimm", testTranslations: ["Bimm"], image: "https://i.imgur.com/XKqLljV.png", link: "https://example.com/monkey" },
+            { word: "Rake", translation: "Rodolm", testTranslations: ["Rodolm"], image: "https://i.imgur.com/eGLXodw.png", link: "https://example.com/dog" },
+            { word: "Watering Can", translation: "Plorent", testTranslations: ["Plorent"], image: "https://i.imgur.com/70srYvU.png", link: "https://example.com/elephant" },
+			{ word: "Lawn Mower", translation: "Heede", testTranslations: ["Heede"], image: "https://i.imgur.com/fU3tnA5.png", link: "https://example.com/elephant" },	
+            { word: "Wheelbarrow", translation: "Artemis", testTranslations: ["Artemis"], image: "https://i.imgur.com/bmMiumW.png", link: "https://example.com/monkey" },
+            { word: "Plant Pot", translation: "Anga", testTranslations: ["Anga"], image: "https://i.imgur.com/AI4uBSy.png", link: "https://example.com/dog" },
+            { word: "Barrel", translation: "Weikel", testTranslations: ["Weikel"], image: "https://i.imgur.com/WuTjz2F.png", link: "https://example.com/elephant" },	
+            { word: "Sickle", translation: "Cutsch", testTranslations: ["Cutsch"], image: "https://i.imgur.com/3aCAOI9.png", link: "https://example.com/lion" },
+            { word: "Basket", translation: "Scad", testTranslations: ["Scad"], image: "https://i.imgur.com/ZAts0KH.png", link: "https://example.com/lion" },	
+            { word: "Lantern", translation: "Rui Wadim", testTranslations: ["Rui Wadim"], image: "https://i.imgur.com/ZdU6dQO.png", link: "https://example.com/monkey" },
+            { word: "Pickaxe", translation: "Nittwa", testTranslations: ["Nittwa"], image: "https://i.imgur.com/1VMbSGC.png", link: "https://example.com/monkey" },
+            { word: "Hoe", translation: "Vedok", testTranslations: ["Vedok"], image: "https://i.imgur.com/5eqSahZ.png", link: "https://example.com/dog" },	
+            { word: "Pitchfork", translation: "Önury", testTranslations: ["Önury"], image: "https://i.imgur.com/Idqf60Q.png", link: "https://example.com/lion" },			
+            { word: "Fence", translation: "Gubst", testTranslations: ["Gubst"], image: "https://i.imgur.com/ukO7MBC.png", link: "https://example.com/dog" }
+			],
+				
+			"Office": [				
+            { word: "Scissors", translation: "Hök", testTranslations: ["Hök"], image: "https://i.imgur.com/YUZySIH.png", link: "https://example.com/monkey" },
+            { word: "Paper", translation: "Gicht", testTranslations: ["Gicht"], image: "https://i.imgur.com/jhLYV0e.png", link: "https://example.com/dog" },
+            { word: "Pen", translation: "Pen", testTranslations: ["Pen"], image: "https://i.imgur.com/FQV9tax.png", link: "https://example.com/elephant" },
+            { word: "Letter", translation: "Hoggi", testTranslations: ["Hoggi"], image: "https://i.imgur.com/KqbIoIB.png", link: "https://example.com/lion" },
+            { word: "Note", translation: "Rosel", testTranslations: ["Rosel"], image: "https://i.imgur.com/6rfodbb.png", link: "https://example.com/lion" },
+            { word: "E-Mail", translation: "Likk", testTranslations: ["Likk"], image: "https://i.imgur.com/Lp8LvHv.png", link: "https://example.com/lion" },
+            { word: "Hole Punch", translation: "Taufina", testTranslations: ["Taufina"], image: "https://i.imgur.com/0tRlJrp.png", link: "https://example.com/monkey" },
+            { word: "Stapler", translation: "Luapa", testTranslations: ["Luapa"], image: "https://i.imgur.com/6lzc4Y2.png", link: "https://example.com/dog" },
+            { word: "Rubber Stamp", translation: "Smultron", testTranslations: ["Smultron"], image: "https://i.imgur.com/QhFM9is.png", link: "https://example.com/elephant" },
+            { word: "Ruler", translation: "Malex", testTranslations: ["Malex"], image: "https://i.imgur.com/0zV8hwQ.png", link: "https://example.com/lion" },
+            { word: "Eraser", translation: "Ey Su", testTranslations: ["Ey Su"], image: "https://i.imgur.com/rAwckc9.png", link: "https://example.com/lion" },
+            { word: "Folder", translation: "Pumbel", testTranslations: ["Pumbel"], image: "https://i.imgur.com/eoAtm1B.png", link: "https://example.com/lion" },
+            { word: "Magnifying Glass", translation: "Farell", testTranslations: ["Farell"], image: "https://i.imgur.com/6cCCYJA.png", link: "https://example.com/lion" },
+            { word: "Textmarker", translation: "Keifeto", testTranslations: ["Keifeto"], image: "https://i.imgur.com/dPxMRQb.png", link: "https://example.com/lion" },
+            { word: "Glue", translation: "Puup", testTranslations: ["Puup"], image: "https://i.imgur.com/u2uTliy.png", link: "https://example.com/monkey" },
+            { word: "Desk Lamp", translation: "Friidgicht", testTranslations: ["Friidgicht"], image: "https://i.imgur.com/tM4LetU.png", link: "https://example.com/dog" },
+            { word: "Sharpener", translation: "Natanus", testTranslations: ["Natanus"], image: "https://i.imgur.com/yBxx490.png", link: "https://example.com/elephant" },
+			{ word: "Pinboard", translation: "Cho", testTranslations: ["Cho"], image: "https://i.imgur.com/kc9QLMi.png", link: "https://example.com/elephant" },	
+            { word: "Paper Clip", translation: "Gicht Lad", testTranslations: ["Gicht Lad"], image: "https://i.imgur.com/1iTzkLx.png", link: "https://example.com/monkey" },
+            { word: "Push Pin", translation: "Spit Bey", testTranslations: ["Spit Bey"], image: "https://i.imgur.com/yxxSTSZ.png", link: "https://example.com/dog" },
+            { word: "Pencil", translation: "Suba", testTranslations: ["Suba"], image: "https://i.imgur.com/oOvs7zS.png", link: "https://example.com/elephant" },	
+            { word: "Board", translation: "Gratton", testTranslations: ["Gratton"], image: "https://i.imgur.com/pb35JFg.png", link: "https://example.com/lion" },
+            { word: "Desk Chair", translation: "Geogenus", testTranslations: ["Geogenus"], image: "https://i.imgur.com/4yA4kpi.png", link: "https://example.com/lion" }
+			]
+			
+
+
+
+        };
+
+        // DOM elements
+        const overviewSection = document.getElementById('overview-section');
+        const flashcardsSection = document.getElementById('flashcards-section');
+        const testSection = document.getElementById('test-section');
+        const overviewTab = document.getElementById('overview-tab');
+        const flashcardsTab = document.getElementById('flashcards-tab');
+        const testTab = document.getElementById('test-tab');
+        const flashcardContainer = document.getElementById('flashcard-container');
+        const flashcardImage = document.getElementById('flashcard-image');
+        const flashcardWord = document.getElementById('flashcard-word');
+        const flashcardTranslation = document.getElementById('flashcard-translation');
+        const nextFlashcardBtn = document.getElementById('next-flashcard');
+        const testImage = document.getElementById('test-image');
+        const testWord = document.getElementById('test-word');
+        const testInput = document.getElementById('test-input');
+        const testSubmit = document.getElementById('test-submit');
+        const skipTestBtn = document.getElementById('skip-test');
+        const testFeedback = document.getElementById('test-feedback');
+        const testProgress = document.getElementById('test-progress');
+        const settingsIcon = document.getElementById('settings-icon');
+        const settingsOverlay = document.getElementById('settings-overlay');
+        const settingsPanel = document.getElementById('settings-panel');
+        const closeSettings = document.getElementById('close-settings');
+        const topicsList = document.getElementById('topics-list');
+
+        // State variables
+        let currentFlashcardIndex = 0;
+        let currentTestIndex = 0;
+        let recentlyTestedIndices = [];
+        let recentlyFlashcardIndices = [];
+        let flashcardMode = 'random';
+        let overviewSortMode = 'english';
+        let activeTopics = {};
+        let currentVocabulary = [];
+        let isCheckingAnswer = false;
+
+        // Initialize the app
+        function init() {
+            // Check if critical DOM elements exist
+            if (!overviewSection || !flashcardsSection || !testSection || !overviewTab || !flashcardsTab || !testTab) {
+                console.error('One or more critical DOM elements are missing:', {
+                    overviewSection, flashcardsSection, testSection, overviewTab, flashcardsTab, testTab
+                });
+                return;
+            }
+
+            // Initialize all topics as active by default
+            Object.keys(vocabularyData).forEach(topic => {
+                activeTopics[topic] = true;
+            });
+            
+            populateTopicsList();
+            updateVocabulary();
+            
+            preloadImages().then(() => {
+                populateOverview();
+                setupFlashcards();
+                setupTest();
+                showSection('overview-section');
+            });
+            
+            // Event listeners for tabs
+            overviewTab.addEventListener('click', () => showSection('overview-section'));
+            flashcardsTab.addEventListener('click', () => showSection('flashcards-section'));
+            testTab.addEventListener('click', () => showSection('test-section'));
+            
+            // Event listeners for mode toggle
+            document.querySelectorAll('input[name="flashcard-mode"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    flashcardMode = e.target.value;
+                    if (flashcardMode === 'random') {
+                        recentlyFlashcardIndices = [];
+                        currentFlashcardIndex = getRandomFlashcardIndex();
+                    } else {
+                        currentFlashcardIndex = 0;
+                    }
+                    showFlashcard();
+                });
+            });
+            
+            // Event listeners for overview sort toggle
+            document.querySelectorAll('input[name="overview-sort"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    overviewSortMode = e.target.value;
+                    updateVocabulary();
+                });
+            });
+            
+            // Settings panel event listeners
+            if (settingsIcon && settingsOverlay && closeSettings) {
+                settingsIcon.addEventListener('click', toggleSettings);
+                closeSettings.addEventListener('click', closeSettingsPanel);
+                settingsOverlay.addEventListener('click', closeSettingsPanel);
+            } else {
+                console.error('Settings elements are missing:', { settingsIcon, settingsOverlay, closeSettings });
+            }
+            
+            // Calculate scrollbar width
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            document.documentElement.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+        }
+        
+        function toggleSettings() {
+            if (settingsOverlay && settingsPanel) {
+                settingsOverlay.classList.toggle('active');
+                settingsPanel.classList.toggle('active');
+            } else {
+                console.error('Cannot toggle settings: overlay or panel is null');
+            }
+        }
+        
+        function closeSettingsPanel() {
+            if (settingsOverlay && settingsPanel) {
+                settingsOverlay.classList.remove('active');
+                settingsPanel.classList.remove('active');
+            } else {
+                console.error('Cannot close settings: overlay or panel is null');
+            }
+        }
+        
+        function populateTopicsList() {
+            if (!topicsList) {
+                console.error('Topics list element is null');
+                return;
+            }
+            topicsList.innerHTML = '';
+            Object.keys(vocabularyData).forEach(topic => {
+                const topicItem = document.createElement('div');
+                topicItem.className = 'flex items-center';
+                const checkboxId = `topic-${topic.replace(/\s+/g, '-')}`;
+                topicItem.innerHTML = `
+                    <input type="checkbox" id="${checkboxId}" class="mr-2" ${activeTopics[topic] ? 'checked' : ''}>
+                    <label for="${checkboxId}" class="cursor-pointer">${topic}</label>
+                `;
+                
+                const checkbox = topicItem.querySelector('input');
+                checkbox.addEventListener('change', () => {
+                    activeTopics[topic] = checkbox.checked;
+                    updateVocabulary();
+                });
+                
+                topicsList.appendChild(topicItem);
+            });
+        }
+        
+        function updateVocabulary() {
+            currentVocabulary = [];
+            Object.keys(vocabularyData).forEach(topic => {
+                if (activeTopics[topic]) {
+                    currentVocabulary = currentVocabulary.concat(vocabularyData[topic]);
+                }
+            });
+            
+            // Sort based on overviewSortMode
+            if (overviewSortMode === 'english') {
+                currentVocabulary.sort((a, b) => a.word.localeCompare(b.word));
+            } else {
+                currentVocabulary.sort((a, b) => a.translation.localeCompare(b.translation));
+            }
+            
+            populateOverview();
+            setupFlashcards();
+            setupTest();
+        }
+        
+        function preloadImages() {
+            return new Promise((resolve) => {
+                let loaded = 0;
+                let total = 0;
+                
+                Object.values(vocabularyData).forEach(topic => {
+                    total += topic.length;
+                });
+                
+                Object.values(vocabularyData).forEach(topic => {
+                    topic.forEach(item => {
+                        const img = new Image();
+                        img.src = item.image;
+                        img.onload = () => {
+                            loaded++;
+                            if (loaded === total) resolve();
+                        };
+                        img.onerror = () => {
+                            loaded++;
+                            if (loaded === total) resolve();
+                        };
+                    });
+                });
+            });
+        }
+        
+        function populateOverview() {
+            if (!overviewSection) {
+                console.error('Overview section element is null');
+                return;
+            }
+            overviewSection.innerHTML = '';
+            
+            if (currentVocabulary.length === 0) {
+                overviewSection.innerHTML = `
+                    <div class="mb-4">
+                        <label class="inline-flex items-center mr-4">
+                            <input type="radio" name="overview-sort" value="english" ${overviewSortMode === 'english' ? 'checked' : ''} class="mr-2">
+                            <span>Sort by English</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="overview-sort" value="ulgarienef" ${overviewSortMode === 'ulgarienef' ? 'checked' : ''} class="mr-2">
+                            <span>Sort by Ulgarienef</span>
+                        </label>
+                    </div>
+                    <p class="text-center text-gray-500">No topics selected. Please enable some topics in settings.</p>
+                `;
+                return;
+            }
+            
+            overviewSection.innerHTML = `
+                <div class="mb-4">
+                    <label class="inline-flex items-center mr-4">
+                        <input type="radio" name="overview-sort" value="english" ${overviewSortMode === 'english' ? 'checked' : ''} class="mr-2">
+                        <span>Sort by English</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="radio" name="overview-sort" value="ulgarienef" ${overviewSortMode === 'ulgarienef' ? 'checked' : ''} class="mr-2">
+                        <span>Sort by Ulgarienef</span>
+                    </label>
+                </div>
+            `;
+            
+            currentVocabulary.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg shadow-md overflow-hidden transform transition hover:scale-105 min-h-[140px] flex flex-col items-center p-5';
+                card.innerHTML = `
+                    <div class="flex w-full items-center">
+                        <div class="flex flex-col items-center">
+                            <img src="${item.image}" alt="${item.word}" class="w-20 h-20 object-cover rounded mb-2">
+                            <h3 class="text-lg font-semibold text-gray-800">${item.word}</h3>
+                        </div>
+                        <div class="flex-1 flex flex-col items-end">
+                            <h2 class="text-xl font-semibold text-gray-800 mb-1">${item.translation}</h2>
+                        </div>
+                    </div>
+                `;
+                overviewSection.appendChild(card);
+            });
+            
+            // Re-attach event listeners for sort toggle
+            document.querySelectorAll('input[name="overview-sort"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    overviewSortMode = e.target.value;
+                    updateVocabulary();
+                });
+            });
+        }
+        
+        function setupFlashcards() {
+            if (!flashcardsSection) {
+                console.error('Flashcards section element is null');
+                return;
+            }
+            if (currentVocabulary.length === 0) {
+                flashcardsSection.innerHTML = '<p class="text-center text-gray-500">No topics selected. Please enable some topics in settings.</p>';
+                return;
+            }
+            
+            if (flashcardMode === 'random') {
+                currentFlashcardIndex = getRandomFlashcardIndex();
+            } else {
+                currentFlashcardIndex = 0;
+            }
+            showFlashcard();
+            
+            if (flashcardContainer && nextFlashcardBtn) {
+                flashcardContainer.addEventListener('click', flipFlashcard);
+                nextFlashcardBtn.addEventListener('click', nextFlashcard);
+            } else {
+                console.error('Flashcard elements are missing:', { flashcardContainer, nextFlashcardBtn });
+            }
+        }
+        
+        function showFlashcard() {
+            if (!flashcardImage || !flashcardWord || !flashcardTranslation || !flashcardContainer) {
+                console.error('Flashcard DOM elements are missing:', { flashcardImage, flashcardWord, flashcardTranslation, flashcardContainer });
+                return;
+            }
+            const item = currentVocabulary[currentFlashcardIndex];
+            flashcardImage.src = item.image;
+            flashcardWord.innerHTML = item.word;
+            flashcardTranslation.textContent = item.translation;
+            flashcardContainer.classList.remove('flipped');
+        }
+        
+        function flipFlashcard() {
+            if (flashcardContainer) {
+                flashcardContainer.classList.toggle('flipped');
+            } else {
+                console.error('Cannot flip flashcard: container is null');
+            }
+        }
+        
+        function getRandomFlashcardIndex() {
+            if (currentVocabulary.length === 0) return 0;
+            
+            const allIndices = currentVocabulary.map((_, index) => index);
+            const availableIndices = allIndices.filter(index => !recentlyFlashcardIndices.includes(index));
+            
+            if (availableIndices.length === 0) {
+                recentlyFlashcardIndices = [];
+                return Math.floor(Math.random() * currentVocabulary.length);
+            }
+            
+            const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+            recentlyFlashcardIndices.push(randomIndex);
+            
+            if (recentlyFlashcardIndices.length > 10) {
+                recentlyFlashcardIndices.shift();
+            }
+            
+            return randomIndex;
+        }
+        
+        function nextFlashcard(event) {
+            event.stopPropagation();
+            if (!flashcardContainer) {
+                console.error('Flashcard container is null');
+                return;
+            }
+            const flashcardInner = flashcardContainer.querySelector('.flashcard-inner');
+            if (!flashcardInner) {
+                console.error('Flashcard inner element is null');
+                return;
+            }
+            flashcardInner.style.transition = 'none';
+            flashcardContainer.classList.remove('flipped');
+            
+            if (currentVocabulary.length === 0) return;
+            
+            if (flashcardMode === 'random') {
+                currentFlashcardIndex = getRandomFlashcardIndex();
+            } else {
+                currentFlashcardIndex = (currentFlashcardIndex + 1) % currentVocabulary.length;
+            }
+            
+            showFlashcard();
+            
+            void flashcardInner.offsetWidth;
+            setTimeout(() => {
+                flashcardInner.style.transition = 'transform 0.6s';
+            }, 50);
+        }
+        
+        function setupTest() {
+            if (!testSection) {
+                console.error('Test section element is null');
+                return;
+            }
+            if (currentVocabulary.length === 0) {
+                testSection.innerHTML = '<p class="text-center text-gray-500">No topics selected. Please enable some topics in settings.</p>';
+                return;
+            }
+            
+            recentlyTestedIndices = [];
+            currentTestIndex = getRandomTestIndex();
+            isCheckingAnswer = false;
+            
+            // Clear previous event listeners
+            if (testSubmit) testSubmit.onclick = null;
+            if (skipTestBtn) skipTestBtn.onclick = null;
+            if (testInput) testInput.onkeydown = null;
+            
+            // Set up new event listeners
+            if (testSubmit && skipTestBtn && testInput) {
+                testSubmit.addEventListener('click', handleAnswerCheck);
+                skipTestBtn.addEventListener('click', skipQuestion);
+                testInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAnswerCheck();
+                    }
+                });
+            } else {
+                console.error('Test elements are missing:', { testSubmit, skipTestBtn, testInput });
+            }
+            
+            showTestQuestion();
+        }
+
+        function getRandomTestIndex() {
+            if (currentVocabulary.length === 0) return 0;
+            
+            const allIndices = currentVocabulary.map((_, index) => index);
+            const availableIndices = allIndices.filter(index => !recentlyTestedIndices.includes(index));
+            
+            if (availableIndices.length === 0) {
+                recentlyTestedIndices = [];
+                return Math.floor(Math.random() * currentVocabulary.length);
+            }
+            
+            const randomIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+            recentlyTestedIndices.push(randomIndex);
+            
+            if (recentlyTestedIndices.length > 10) {
+                recentlyTestedIndices.shift();
+            }
+            
+            return randomIndex;
+        }
+
+        function showTestQuestion() {
+            if (currentVocabulary.length === 0) return;
+            
+            if (!testImage || !testWord || !testInput || !testFeedback || !testProgress) {
+                console.error('Test DOM elements are missing:', { testImage, testWord, testInput, testFeedback, testProgress });
+                return;
+            }
+            
+            const item = currentVocabulary[currentTestIndex];
+            testImage.src = item.image;
+            testWord.innerHTML = item.word.replace(/<br>/g, '<br>');
+            testInput.value = '';
+            testFeedback.textContent = '';
+            testInput.focus();
+            updateTestProgress();
+        }
+
+        function handleAnswerCheck() {
+            if (isCheckingAnswer) return;
+            isCheckingAnswer = true;
+            
+            if (!testInput || !testFeedback) {
+                console.error('Test input or feedback elements are missing:', { testInput, testFeedback });
+                isCheckingAnswer = false;
+                return;
+            }
+            
+            const userInput = testInput.value.trim().toLowerCase();
+            const correctAnswers = currentVocabulary[currentTestIndex].testTranslations.map(t => t.toLowerCase());
+            
+            if (correctAnswers.includes(userInput)) {
+                testFeedback.textContent = 'Correct!';
+                testFeedback.className = 'text-lg mt-4 text-center text-green-600';
+                
+                setTimeout(() => {
+                    currentTestIndex = getRandomTestIndex();
+                    showTestQuestion();
+                    isCheckingAnswer = false;
+                }, 800);
+            } else {
+                testFeedback.textContent = `Incorrect. The correct answer is "${currentVocabulary[currentTestIndex].testTranslations.join(' / ')}".`;
+                testFeedback.className = 'text-lg mt-4 text-center text-red-600';
+                testInput.value = '';
+                testInput.focus();
+                isCheckingAnswer = false;
+            }
+        }
+
+        function skipQuestion() {
+            if (isCheckingAnswer) return;
+            
+            currentTestIndex = getRandomTestIndex();
+            showTestQuestion();
+        }
+
+        function updateTestProgress() {
+            if (!testProgress) {
+                console.error('Test progress element is null');
+                return;
+            }
+            if (currentVocabulary.length === 0) {
+                testProgress.textContent = 'No words available';
+            } else {
+                testProgress.textContent = `${currentVocabulary.length} words in total`;
+            }
+        }
+        
+        function showSection(sectionId) {
+            if (!overviewSection || !flashcardsSection || !testSection || !overviewTab || !flashcardsTab || !testTab) {
+                console.error('One or more section/tab elements are null:', {
+                    overviewSection, flashcardsSection, testSection, overviewTab, flashcardsTab, testTab
+                });
+                return;
+            }
+            
+            overviewSection.classList.add('hidden');
+            flashcardsSection.classList.add('hidden');
+            testSection.classList.add('hidden');
+            overviewTab.classList.remove('tab-active');
+            flashcardsTab.classList.remove('tab-active');
+            testTab.classList.remove('tab-active');
+            
+            const section = document.getElementById(sectionId);
+            const tabIdMap = {
+                'overview-section': 'overview-tab',
+                'flashcards-section': 'flashcards-tab',
+                'test-section': 'test-tab'
+            };
+            const tabId = tabIdMap[sectionId];
+            const tab = document.getElementById(tabId);
+            
+            if (section && tab) {
+                section.classList.remove('hidden');
+                tab.classList.add('tab-active');
+            } else {
+                console.error(`Section or tab for ${sectionId} not found`, { section, tab });
+            }
+            
+            if (sectionId === 'flashcards-section') {
+                setupFlashcards();
+            } else if (sectionId === 'test-section') {
+                setupTest();
+            } else if (sectionId === 'overview-section') {
+                populateOverview();
+            }
+        }
+        
+        // Start the app
+        window.onload = init;
+    </script>
+</body>
+</html>
